@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Speech to Text</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 5px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 32rem;
+            width: 90%;
+            text-align: center;
+        }
+        .message-box {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #333;
+            color: #fff;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .message-box.show {
+            opacity: 1;
+        }
+        .animate-pulse-light {
+            animation: pulse-light 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-light {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Speech to Text</h1>
+        <p class="text-gray-600 mb-6">Press the "Start Recording" button to begin speaking.</p>
+        
+        <textarea id="textOutput" 
+                  class="w-full h-48 p-4 mb-6 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition duration-200 resize-none" 
+                  placeholder="Your transcribed text will appear here..." readonly></textarea>
+        
+        <button id="recordButton" 
+                class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-xl transition duration-300 transform hover:scale-105 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300">
+            Start Recording
+        </button>
+
+        <div id="messageBox" class="message-box"></div>
+    </div>
+
+    <script>
+        const recordButton = document.getElementById('recordButton');
+        const textOutput = document.getElementById('textOutput');
+        const messageBox = document.getElementById('messageBox');
+        
+        // Check if the browser supports Speech Recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        let recognition;
+        let isRecording = false;
+        let currentTranscript = ''; // Variable to store the full, final transcribed text
+
+        // Function to display a message
+        function showMessage(message) {
+            messageBox.textContent = message;
+            messageBox.classList.add('show');
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 3000);
+        }
+
+        // Function to start or stop speech recognition
+        function startOrStopRecognition() {
+            if (isRecording) {
+                recognition.stop();
+                return;
+            }
+
+            if (!SpeechRecognition) {
+                showMessage("Sorry, your browser does not support Speech Recognition.");
+                return;
+            }
+
+            // Create a new recognition object
+            recognition = new SpeechRecognition();
+            recognition.interimResults = true; // Show interim results
+            recognition.continuous = true; // Continuously record
+            recognition.lang = 'en-US'; // Set the language to English (United States)
+
+            recognition.onstart = () => {
+                isRecording = true;
+                recordButton.textContent = "Stop Recording";
+                recordButton.classList.add('animate-pulse-light');
+                showMessage("Listening... You can start speaking now.");
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                recordButton.textContent = "Start Recording";
+                recordButton.classList.remove('animate-pulse-light');
+                showMessage("Recording stopped.");
+                // Reset the transcript for the next session
+                currentTranscript = '';
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech Recognition Error:', event.error);
+                let errorMessage = "An error occurred.";
+                if (event.error === 'not-allowed') {
+                    errorMessage = "Microphone permission denied. Please allow microphone access.";
+                } else if (event.error === 'no-speech') {
+                    errorMessage = "No speech was detected.";
+                }
+                showMessage(errorMessage);
+                // Also stop recognition on error
+                recognition.stop();
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                // Append final text to the stored transcript
+                currentTranscript += finalTranscript;
+
+                // Display the combined stored and current interim text
+                textOutput.value = currentTranscript + interimTranscript;
+            };
+
+            recognition.start();
+        }
+
+        recordButton.addEventListener('click', startOrStopRecognition);
+    </script>
+</body>
+</html>
